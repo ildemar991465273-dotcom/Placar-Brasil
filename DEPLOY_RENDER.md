@@ -1,0 +1,3 @@
+# Hospedar GolUp no Render
+
+No Render, crie um **Blueprint** apontando para este repositório, usando `render.yaml`. Se o plano `free` não estiver disponível, confira as condições da sua conta antes de selecionar uma modalidade paga. Defina a variável **API_FOOTBALL_KEY** em Environment usando sua própria chave (não a envie no chat). Após o deploy, abra `https://SEU-SERVICO.onrender.com/health` e confira `configured: true`. No GolUp, vá em Conta > Servidor de dados reais e informe o endereço HTTPS do Render. A API-Football limita cobertura/consultas conforme o plano; dados podem estar ausentes ou atrasados. Esta versão de servidor não implementa chat multiusuário, pagamentos, notificações push nem novas modalidades esportivas.
