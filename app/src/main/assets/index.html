@@ -61,7 +61,7 @@ function renderTimeline(g){let node=document.getElementById('matchTimeline');if(
 render();
 
 // GolUp 2.4 — integração via servidor próprio. NUNCA guarde chaves de provedores no aplicativo.
-let realMode=false, apiBase=localStorage.getItem('golup_api_base')||((location.protocol==='http:'||location.protocol==='https:')?location.origin:'');
+let realMode=false, apiBase=localStorage.getItem('golup_api_base')||'https://golup-api.onrender.com';
 function baseEndpoint(){return apiBase.replace(/\/+$/,'')}
 function setServer(){let raw=document.getElementById('serverAddress').value.trim().replace(/\/+$/,'');if(raw && !/^https:\/\//i.test(raw) && !/^http:\/\/localhost(:\d+)?$/i.test(raw)){alert('Use um endereço HTTPS do seu servidor.');return}apiBase=raw;localStorage.setItem('golup_api_base',raw);loadReal(true)}
 async function apiCall(route,params={}){if(!baseEndpoint())throw Error('Informe o endereço HTTPS do servidor na aba Conta.');let u=new URL(baseEndpoint()+'/api/'+route);Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null)u.searchParams.set(k,v)});let r=await fetch(u.toString(),{headers:{Accept:'application/json'}});let v=await r.json();if(!r.ok)throw Error(v.error||'Servidor indisponível');return v.data===undefined?v:v.data}
