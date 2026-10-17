@@ -55,6 +55,8 @@ def sportmonks_request(path,include=""):
     if not SM_KEY:raise RuntimeError("SPORTMONKS_TOKEN não configurado no Render")
     qs=urllib.parse.urlencode({"include":include}) if include else ""
     url="https://api.sportmonks.com/v3/football/"+path+("?" +qs if qs else "")
+    if any(ord(c)<33 or ord(c)>126 for c in SM_KEY):
+        raise RuntimeError("SPORTMONKS_TOKEN invalido: o valor contem texto, espacos ou caracteres especiais. Cole o token verdadeiro da Sportmonks no Render.")
     req=urllib.request.Request(url,headers={"Authorization":SM_KEY,"Accept":"application/json","User-Agent":"GolUp/3"})
     try:
         with urllib.request.urlopen(req,timeout=18) as response:return json.loads(response.read().decode()).get("data",{})
