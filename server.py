@@ -7,6 +7,12 @@ PORT=int(os.getenv("PORT","10000"))
 CACHE={}
 LOCK=threading.Lock()
 ROUTES={"fixtures","events","statistics","lineups","players","leagues","teams","transfers"}
+def football_data_competitions():
+    if not FD_KEY: raise RuntimeError("FOOTBALL_DATA_KEY não configurada")
+    req=urllib.request.Request("https://api.football-data.org/v4/competitions/",headers={"X-Auth-Token":FD_KEY,"Accept":"application/json"})
+    with urllib.request.urlopen(req,timeout=20) as resp: data=json.loads(resp.read().decode())
+    return [{"id":c.get("id"),"name":c.get("name"),"code":c.get("code"),"country":(c.get("area") or {}).get("name"),"plan":c.get("plan")} for c in data.get("competitions",[])]
+
 def football_data_games(params):
     if not FD_KEY: raise RuntimeError("FOOTBALL_DATA_KEY não configurada no Render")
     day=params.get("date",[datetime.date.today().isoformat()])[0]
@@ -37,6 +43,14 @@ def football_data_games(params):
     return games
 
 def get_data(route,params):
+    if route=="competitions" and FD_KEY:
+        key=("football-data-competitions",)
+        with LOCK:
+            cached=CACHE.get(key)
+            if cached and time.time()-cached[0]<86400:return cached[1]
+        data=football_data_competitions()
+        with LOCK:CACHE[key]=(time.time(),data)
+        return data
     if route=="fixtures" and FD_KEY:
         key=("football-data",tuple(sorted((k,tuple(v)) for k,v in params.items())))
         with LOCK:
