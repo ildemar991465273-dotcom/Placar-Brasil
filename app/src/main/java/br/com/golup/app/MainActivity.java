@@ -11,6 +11,9 @@ import android.graphics.Color;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import androidx.webkit.WebViewAssetLoader;
 import android.webkit.WebSettings;
 import android.webkit.WebChromeClient;
 public class MainActivity extends Activity {
@@ -39,9 +42,10 @@ public class MainActivity extends Activity {
  }
  @Override public void onCreate(Bundle state){
   super.onCreate(state);getWindow().setStatusBarColor(Color.rgb(9,19,30));getWindow().setNavigationBarColor(Color.rgb(16,29,43));
-  channels();webView=new WebView(this);webView.setBackgroundColor(Color.rgb(9,19,30));webView.setWebViewClient(new WebViewClient());webView.setWebChromeClient(new WebChromeClient());
-  WebSettings s=webView.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(true);
-  webView.addJavascriptInterface(new AppBridge(),"GolUpAndroid");setContentView(webView);webView.loadUrl("file:///android_asset/index.html");
+  channels();webView=new WebView(this);webView.setBackgroundColor(Color.rgb(9,19,30));final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder().addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
+  webView.setWebViewClient(new WebViewClient(){@Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request){return assetLoader.shouldInterceptRequest(request.getUrl());}});webView.setWebChromeClient(new WebChromeClient());
+  WebSettings s=webView.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setAllowFileAccess(false);
+  webView.addJavascriptInterface(new AppBridge(),"GolUpAndroid");setContentView(webView);webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
  }
  @Override public void onBackPressed(){if(webView.canGoBack())webView.goBack();else super.onBackPressed();}
 }
