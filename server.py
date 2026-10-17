@@ -86,6 +86,32 @@ def sportmonks_fixtures(params):
         out.append({"id":"sm-"+str(m.get("id")),"source_id":m.get("id"),"provider":"sportmonks","real":True,"sport":0,"a":home.get("name","Casa"),"b":away.get("name","Visitante"),"ea":"⚽","eb":"⚽","league":(m.get("league") or {}).get("name","Sportmonks"),"country":"","flag":"🌍","score":str(h)+" - "+str(a) if h is not None and a is not None else "–","status":state,"live":live})
     return out
 
+def sportmonks_match(params):
+    ident=(params.get("id") or [""])[0].removeprefix("sm-")
+    if not ident.isdigit():raise ValueError("ID Sportmonks invalido")
+    m=sportmonks_request("fixtures/"+ident,"participants;statistics.type;events.type;events.player;state;scores")
+    parts=m.get("participants") or []
+    home=next((p for p in parts if (p.get("meta") or {}).get("location")=="home"),parts[0] if parts else {})
+    away=next((p for p in parts if (p.get("meta") or {}).get("location")=="away"),parts[1] if len(parts)>1 else {})
+    keys={"CORNERS":"corner_kicks","CORNER_KICKS":"corner_kicks","BALL_POSSESSION":"ball_possession","POSSESSION":"ball_possession","SHOTS_TOTAL":"shots","TOTAL_SHOTS":"shots","SHOTS_ON_TARGET":"shots_on_goal","SHOTS_ON_GOAL":"shots_on_goal","FOULS":"fouls","FOULS_COMMITTED":"fouls","OFFSIDES":"offsides","YELLOWCARDS":"yellow_cards","YELLOW_CARDS":"yellow_cards","REDCARDS":"red_cards","RED_CARDS":"red_cards","PASSES":"passes","TOTAL_PASSES":"passes","ACCURATE_PASSES":"accurate_passes","SUCCESSFUL_PASSES":"accurate_passes"}
+    teams={str(home.get("id")):{"name":home.get("name","Casa"),"statistics":{}} ,str(away.get("id")):{"name":away.get("name","Visitante"),"statistics":{}}}
+    for item in m.get("statistics") or []:
+        t=item.get("type") or {}
+        code=str(t.get("code") or t.get("name") or "").upper().replace(" ","_").replace("-","_")
+        key=keys.get(code)
+        if not key:continue
+        entry=teams.get(str(item.get("participant_id")))
+        if entry is None:continue
+        value=(item.get("data") or {}).get("value")
+        if isinstance(value,dict):value=value.get("total",value.get("value"))
+        if value is not None:entry["statistics"][key]=value
+    events=[]
+    for item in m.get("events") or []:
+        t=item.get("type") or {}
+        code=str(t.get("code") or t.get("name") or "").lower()
+        events.append({"minute":item.get("minute"),"type":code,"player":(item.get("player") or {}).get("name"),"text":item.get("addition")})
+    return {"provider":"sportmonks","status":(m.get("state") or {}).get("state"),"home":teams[str(home.get("id"))],"away":teams[str(away.get("id"))],"events":events,"score":{}}
+
 def get_data(route,params):
     if route=="sportmonks-fixtures":return sportmonks_fixtures(params)
     if route=="sportmonks-status":return {"configured":bool(SM_KEY),"format_ok":bool(SM_KEY) and all(33<=ord(c)<=126 for c in SM_KEY)}
@@ -93,7 +119,7 @@ def get_data(route,params):
     if route=="match":
         ident=(params.get("id") or [""])[0]
         if ident.startswith("sm-"):
-            raise ValueError("Detalhes Sportmonks ainda nao habilitados")
+            return sportmonks_match(params)
         if FD_KEY:return football_data_match(params)
     if route=="competitions" and FD_KEY:
         key=("football-data-competitions",)
