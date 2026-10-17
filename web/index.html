@@ -10,7 +10,7 @@ async function openMatch(id){
  selectedMatch=game;$('matchDetail').hidden=false;document.body.style.overflow='hidden';
  $('detailTitle').textContent=game.a+' × '+game.b;
  $('detailInfo').textContent=game.league+' • '+game.country+'\n'+readableStatus(game.status);
- $('detailCoverage').textContent='Informações fornecidas pela football-data.org. O plano gratuito pode atrasar placares e não fornecer lances ou escalações.';
+ $('detailCoverage').textContent='Dados oficiais das APIs conectadas. Estatísticas variam conforme a competição e o plano contratado.';
  $('detailEvents').textContent='Consultando detalhes disponíveis…';$('detailStats').textContent='Consultando estatísticas…';
  $('detailLineup').textContent='Consultando escalações disponíveis…';
  try{
@@ -20,11 +20,17 @@ async function openMatch(id){
  $('detailInfo').textContent=game.league+' • '+game.country+'\n'+readableStatus(d.status||game.status)+'\nPlacar: '+(game.score||'–')+(d.minute?' • '+d.minute+' min':'');
  const formatStat=(name,a,b)=>name+': '+(a??'Indisponível')+' × '+(b??'Indisponível');
  const homeStats=(d.home||{}).statistics||{},awayStats=(d.away||{}).statistics||{};
- const fields=[['Escanteios','corner_kicks'],['Posse de bola (%)','ball_possession'],['Finalizações','shots'],['Chutes a gol','shots_on_goal'],['Cartões amarelos','yellow_cards'],['Cartões vermelhos','red_cards'],['Faltas','fouls'],['Impedimentos','offsides']];
+ const fields=[['Escanteios','corner_kicks'],['Posse de bola (%)','ball_possession'],['Finalizações','shots'],['Chutes a gol','shots_on_goal'],['Cartões amarelos','yellow_cards'],['Cartões vermelhos','red_cards'],['Faltas','fouls'],['Impedimentos','offsides'],['Passes','passes'],['Passes certos','accurate_passes']];
  const available=fields.filter(([label,key])=>homeStats[key]!==undefined||awayStats[key]!==undefined);
  const score=d.score||{},halftime=score.halfTime||{};
- $('detailStats').textContent=(available.length?available.map(([label,key])=>formatStat(label,homeStats[key],awayStats[key])).join('\n'):'Estatísticas como escanteios, chutes e posse de bola não estão disponíveis no plano atual.')+(halftime.home!=null?'\nIntervalo: '+halftime.home+' × '+halftime.away:'');
+ $('detailStats').textContent=(available.length?available.map(([label,key])=>formatStat(label,homeStats[key],awayStats[key])).join('\n'):'A API não forneceu estatísticas desta partida. A cobertura varia por liga e plano.')+(halftime.home!=null?'\nIntervalo: '+halftime.home+' × '+halftime.away:'');
  const ev=[];
+ for(const x of d.events||[]){
+   const typ=String(x.type||'').toLowerCase();const name=x.player||'Jogador';
+   const ico=typ.includes('yellow')?'🟨':typ.includes('red')?'🟥':typ.includes('goal')?'⚽':typ.includes('penalt')?'🥅':typ.includes('substitut')?'🔁':'⚽';
+   if(typ.includes('goal')||typ.includes('card')||typ.includes('penalt')||typ.includes('substitut'))ev.push(ico+' '+(x.minute??'?')+'′ '+name);
+ }
+
  for(const x of d.goals||[])ev.push('⚽ '+(x.minute||'?')+"′ "+(x.scorer&&x.scorer.name||'Gol registrado'));
  for(const x of d.bookings||[])ev.push('🟨 '+(x.minute||'?')+"′ "+(x.player&&x.player.name||'Cartão registrado'));
  for(const x of d.penalties||[])ev.push('🥅 Pênalti: '+((x.player||{}).name||'Jogador')+(x.scored?' convertido':' perdido'));for(const x of d.substitutions||[])ev.push('🔁 '+(x.minute||'?')+"′ Substituição registrada");
