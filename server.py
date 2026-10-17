@@ -39,10 +39,18 @@ def football_data_games(params):
             "ea":"⚽","eb":"⚽","league":(match.get("competition") or {}).get("name") or "",
             "country":(match.get("area") or {}).get("name") or "",
             "flag":"🌍","score":score_label,"status":status,
-            "live":status in ("IN_PLAY","PAUSED","EXTRA_TIME","PENALTY_SHOOTOUT")})
+            "live":status in ("LIVE","IN_PLAY","PAUSED","EXTRA_TIME","PENALTY_SHOOTOUT")})
     return games
 
+def football_data_match(params):
+    ident=(params.get("id") or [""])[0]
+    if not ident.isdigit(): raise ValueError("Informe o ID da partida")
+    req=urllib.request.Request("https://api.football-data.org/v4/matches/"+ident,headers={"X-Auth-Token":FD_KEY,"Accept":"application/json","X-Unfold-Lineups":"true","X-Unfold-Goals":"true","X-Unfold-Subs":"true","X-Unfold-Bookings":"true"})
+    with urllib.request.urlopen(req,timeout=18) as response: data=json.loads(response.read().decode())
+    return {"status":data.get("status"),"minute":data.get("minute"),"home":data.get("homeTeam",{}),"away":data.get("awayTeam",{}),"goals":data.get("goals") or [],"bookings":data.get("bookings") or [],"substitutions":data.get("substitutions") or []}
+
 def get_data(route,params):
+    if route=="match" and FD_KEY:return football_data_match(params)
     if route=="competitions" and FD_KEY:
         key=("football-data-competitions",)
         with LOCK:
