@@ -1,0 +1,1 @@
+Envie index.html do projeto GolUp para esta pasta. O arquivo index.html e necessario para abrir a interface do aplicativo Android.
