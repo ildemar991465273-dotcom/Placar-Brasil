@@ -88,9 +88,13 @@ def sportmonks_fixtures(params):
 
 def get_data(route,params):
     if route=="sportmonks-fixtures":return sportmonks_fixtures(params)
-    if route=="sportmonks-status":return {"configured":bool(SM_KEY)}
+    if route=="sportmonks-status":return {"configured":bool(SM_KEY),"format_ok":bool(SM_KEY) and all(33<=ord(c)<=126 for c in SM_KEY)}
 
-    if route=="match" and FD_KEY:return football_data_match(params)
+    if route=="match":
+        ident=(params.get("id") or [""])[0]
+        if ident.startswith("sm-"):
+            raise ValueError("Detalhes Sportmonks ainda nao habilitados")
+        if FD_KEY:return football_data_match(params)
     if route=="competitions" and FD_KEY:
         key=("football-data-competitions",)
         with LOCK:
@@ -105,6 +109,17 @@ def get_data(route,params):
             cached=CACHE.get(key)
             if cached and time.time()-cached[0]<90:return cached[1]
         result=football_data_games(params)
+        if SM_KEY and all(33<=ord(c)<=126 for c in SM_KEY):
+            try:
+                supplemental=sportmonks_fixtures(params)
+                known={(g.get("a","").casefold(),g.get("b","").casefold()) for g in result}
+                for g in supplemental:
+                    pair=(g.get("a","").casefold(),g.get("b","").casefold())
+                    if pair not in known:
+                        result.append(g)
+                        known.add(pair)
+            except Exception as e:
+                print("Sportmonks supplement failed:",type(e).__name__,flush=True)
         with LOCK:CACHE[key]=(time.time(),result)
         return result
     if not API_KEY: raise RuntimeError("Configure FOOTBALL_DATA_KEY ou API_FOOTBALL_KEY no servidor")
