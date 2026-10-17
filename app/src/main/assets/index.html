@@ -131,7 +131,7 @@ function openFavoriteClub(){favoriteClubChoice=favoriteClub;favoriteClubQuery=''
 function clubSearchChanged(value){
 favoriteClubQuery=value;favoriteClubChoice='';favoriteClubIcon='⚽';
 const list=document.getElementById('clubMatches');if(!list)return;
-const norm=t=>t.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+const norm=t=>t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const query=norm(value.trim());
 const matches=CLUB_SUGGESTIONS.filter(x=>norm(x[0]+' '+x[1]).includes(query)).slice(0,12);
 const custom=value.trim();
