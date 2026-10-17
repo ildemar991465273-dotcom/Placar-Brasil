@@ -44,12 +44,40 @@ def football_data_games(params):
             "live":status in ("LIVE","IN_PLAY","PAUSED","EXTRA_TIME","PENALTY_SHOOTOUT")})
     return games
 
+def team_key(name):
+    import re, unicodedata
+    raw=unicodedata.normalize("NFKD",str(name or "")).encode("ascii","ignore").decode().lower()
+    words=re.findall(r"[a-z0-9]+",raw)
+    ignore={"fc","cf","sc","se","ac","ca","club","football","futebol","esporte","esportivo","sport","de","do","da","the"}
+    return set(x for x in words if x not in ignore)
+
+def same_team(a,b):
+    x,y=team_key(a),team_key(b)
+    if not x or not y:return False
+    return x==y or (len(x&y)>=2 and len(x&y)/max(len(x),len(y))>=0.66)
+
 def football_data_match(params):
     ident=(params.get("id") or [""])[0]
     if not ident.isdigit(): raise ValueError("Informe o ID da partida")
     req=urllib.request.Request("https://api.football-data.org/v4/matches/"+ident,headers={"X-Auth-Token":FD_KEY,"Accept":"application/json","X-Unfold-Lineups":"true","X-Unfold-Goals":"true","X-Unfold-Subs":"true","X-Unfold-Bookings":"true"})
     with urllib.request.urlopen(req,timeout=18) as response: data=json.loads(response.read().decode())
-    return {"status":data.get("status"),"minute":data.get("minute"),"home":data.get("homeTeam",{}),"away":data.get("awayTeam",{}),"goals":data.get("goals") or [],"bookings":data.get("bookings") or [],"substitutions":data.get("substitutions") or [],"penalties":data.get("penalties") or [],"score":data.get("score") or {},"utcDate":data.get("utcDate") }
+    detail={"status":data.get("status"),"minute":data.get("minute"),"home":data.get("homeTeam",{}),"away":data.get("awayTeam",{}),"goals":data.get("goals") or [],"bookings":data.get("bookings") or [],"substitutions":data.get("substitutions") or [],"penalties":data.get("penalties") or [],"score":data.get("score") or {},"utcDate":data.get("utcDate"),"provider":"football-data"}
+    if SM_KEY and data.get("utcDate"):
+        try:
+            day=data["utcDate"][:10]
+            options=sportmonks_fixtures({"date":[day]})
+            h=(data.get("homeTeam") or {}).get("name","")
+            a=(data.get("awayTeam") or {}).get("name","")
+            candidates=[g for g in options if same_team(h,g.get("a")) and same_team(a,g.get("b"))]
+            if len(candidates)==1:
+                extra=sportmonks_match({"id":[candidates[0]["id"]]})
+                for side in ("home","away"):
+                    detail[side]["statistics"]=extra.get(side,{}).get("statistics",{})
+                detail["events"]=extra.get("events",[])
+                detail["statistics_source"]="sportmonks"
+        except Exception as exc:
+            print("Sportmonks match enrichment unavailable:",type(exc).__name__,flush=True)
+    return detail
 
 def sportmonks_request(path,include=""):
     if not SM_KEY:raise RuntimeError("SPORTMONKS_TOKEN não configurado no Render")
