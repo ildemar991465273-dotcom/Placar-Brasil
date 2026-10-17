@@ -2,45 +2,44 @@ name: Gerar APK GolUp
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-
+    branches: [main]
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Baixar codigo do GolUp
-        uses: actions/checkout@v4
-
-      - name: Configurar Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar plataforma Android 35
+      - name: Localizar SDK preinstalado
+        shell: bash
         run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
-          sdkmanager --list_installed
-
-      - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v4
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
+          ls -la "${ANDROID_HOME}/cmdline-tools/latest/bin" || true
+      - name: Aceitar licencas Android e instalar SDK 35
+        shell: bash
+        run: |
+          set -eo pipefail
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          fi
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /tmp/android-licenses.log || test "${PIPESTATUS[1]}" -eq 0
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          "$SDKMANAGER" --list_installed
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-
-      - name: Compilar APK
+      - name: Compilar APK do GolUp
         run: gradle --no-daemon --stacktrace assembleDebug
-
-      - name: Verificar APK gerado
+      - name: Verificar APK
         run: test -s app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Disponibilizar APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: GolUp-Android-APK
           path: app/build/outputs/apk/debug/app-debug.apk
