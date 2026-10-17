@@ -10,7 +10,7 @@ ROUTES={"fixtures","events","statistics","lineups","players","leagues","teams","
 def football_data_games(params):
     if not FD_KEY: raise RuntimeError("FOOTBALL_DATA_KEY não configurada no Render")
     day=params.get("date",[datetime.date.today().isoformat()])[0]
-    if not __import__("re").fullmatch(r"\\d{4}-\\d{2}-\\d{2}",day): raise ValueError("Data inválida")
+    if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}",day): raise ValueError("Data inválida")
     url="https://api.football-data.org/v4/matches?"+urllib.parse.urlencode({"dateFrom":day,"dateTo":day})
     request=urllib.request.Request(url,headers={"X-Auth-Token":FD_KEY,"Accept":"application/json"})
     try:
