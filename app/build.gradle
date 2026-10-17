@@ -2,7 +2,7 @@ plugins { id 'com.android.application' }
 android {
  namespace 'br.com.golup.app'
  compileSdk 35
- defaultConfig { applicationId 'br.com.golup.app'; minSdk 23; targetSdk 35; versionCode 10; versionName '2.9.2' }
+ defaultConfig { applicationId 'br.com.golup.app'; minSdk 23; targetSdk 35; versionCode 11; versionName '2.9.3' }
 }
 
 tasks.register('generateGolUpIcon') {
@@ -14,3 +14,5 @@ tasks.register('generateGolUpIcon') {
     }
 }
 tasks.named('preBuild') { dependsOn('generateGolUpIcon') }
+
+dependencies { implementation 'androidx.webkit:webkit:1.12.1' }
