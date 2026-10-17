@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: golup-api
+    runtime: python
+    plan: free
+    buildCommand: "echo GolUp pronto"
+    startCommand: "python server.py"
+    healthCheckPath: /health
+    envVars:
+      - key: API_FOOTBALL_KEY
+        sync: false
