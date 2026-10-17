@@ -61,12 +61,33 @@ function renderTimeline(g){let node=document.getElementById('matchTimeline');if(
 render();
 
 // GolUp 2.4 — integração via servidor próprio. NUNCA guarde chaves de provedores no aplicativo.
-let realMode=false, apiBase=localStorage.getItem('golup_api_base')||'https://golup-api.onrender.com';
+let realMode=false, apiBase='https://golup-api.onrender.com';localStorage.setItem('golup_api_base',apiBase);
 function baseEndpoint(){return apiBase.replace(/\/+$/,'')}
 function setServer(){let raw=document.getElementById('serverAddress').value.trim().replace(/\/+$/,'');if(raw && !/^https:\/\//i.test(raw) && !/^http:\/\/localhost(:\d+)?$/i.test(raw)){alert('Use um endereço HTTPS do seu servidor.');return}apiBase=raw;localStorage.setItem('golup_api_base',raw);loadReal(true)}
 async function apiCall(route,params={}){if(!baseEndpoint())throw Error('Informe o endereço HTTPS do servidor na aba Conta.');let u=new URL(baseEndpoint()+'/api/'+route);Object.entries(params).forEach(([k,v])=>{if(v!==undefined&&v!==null)u.searchParams.set(k,v)});let r=await fetch(u.toString(),{headers:{Accept:'application/json'}});let v=await r.json();if(!r.ok)throw Error(v.error||'Servidor indisponível');return v.data===undefined?v:v.data}
 function setDataStatus(t){let node=document.getElementById('dataStatus');if(node)node.textContent=t}
-async function loadReal(manual=false){if(sport!==0){realMode=false;liveGames=null;render();setDataStatus('DEMO OUTROS ESPORTES');return}setDataStatus('CONECTANDO…');try{let d=dateText(offset);let day=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');let data=await apiCall('fixtures',{date:day});liveGames=data;realMode=true;setDataStatus('DADOS REAIS • API');render();if(manual)alert('Consulta ao servidor concluída. Jogos recebidos: '+data.length+'.')}catch(e){realMode=false;liveGames=null;render();setDataStatus('DEMONSTRAÇÃO');if(manual)alert('Sem dados reais: '+e.message)}}
+async function loadReal(manual=false){
+if(sport!==0){realMode=false;liveGames=null;render();setDataStatus('DEMO OUTROS ESPORTES');return}
+setDataStatus('CONECTANDO…');
+try{
+  let d=dateText(offset);let day=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  let data=await apiCall('fixtures',{date:day});
+  if(!Array.isArray(data))throw Error('O servidor retornou dados inválidos');
+  liveGames=data;realMode=true;render();setDataStatus('DADOS REAIS • API');
+  if(manual)alert('GolUp conectado! Jogos reais encontrados: '+data.length);
+}catch(e){
+  realMode=false;liveGames=null;render();setDataStatus('ERRO API • TOQUE');
+  let msg=String(e.message||e);
+  let box=document.getElementById('golupConnectionError');
+  if(!box){box=document.createElement('div');box.id='golupConnectionError';box.style.cssText='margin:12px 16px;padding:12px;border:1px solid #aa7544;background:#30261e;color:#f7ceaa;border-radius:10px;font-size:13px';document.getElementById('main').prepend(box)}
+  box.innerHTML='<b>Não foi possível carregar jogos reais.</b><p id="golupErrMsg"></p><button id="golupRetry" style="padding:10px;color:#111;background:#b8fc4c;border:0;border-radius:8px">Tentar novamente</button>';
+  document.getElementById('golupErrMsg').textContent=msg;
+  document.getElementById('golupRetry').onclick=()=>loadReal(true);
+  if(manual)alert('Falha na conexão com jogos reais: '+msg);
+}
+}
+document.getElementById('dataStatus').style.cursor='pointer';
+document.getElementById('dataStatus').onclick=()=>loadReal(true);
 let oldDateShift=dateShift;dateShift=function(n){oldDateShift(n);if(apiBase)loadReal(false)};
 let oldSport=chooseSport;chooseSport=function(i){oldSport(i);if(apiBase)loadReal(false)};
 const originalRender=render;
