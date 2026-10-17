@@ -1,4 +1,5 @@
 import os, json, urllib.request, urllib.parse, datetime, time, threading
+from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 API_KEY=os.getenv("API_FOOTBALL_KEY","")
@@ -108,6 +109,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):self.send_json(200,{})
     def do_GET(self):
         url=urllib.parse.urlparse(self.path);route=url.path.strip("/")
+        if route in ("app","app/"):
+            page=Path(__file__).resolve().parent/"web"/"index.html"
+            try: body=page.read_bytes()
+            except OSError: return self.send_json(503,{"error":"Interface web indisponível"})
+            self.send_response(200)
+            self.send_header("Content-Type","text/html; charset=utf-8")
+            self.send_header("Cache-Control","no-store")
+            self.send_header("Content-Length",str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if route in ("","health"):return self.send_json(200,{"service":"GolUp API","ok":True,"configured":bool(FD_KEY or API_KEY),"provider":"football-data.org" if FD_KEY else "api-football" if API_KEY else "none"})
         if not route.startswith("api/"):return self.send_json(404,{"error":"Rota não encontrada"})
         try:self.send_json(200,{"data":get_data(route.split("/",1)[1],urllib.parse.parse_qs(url.query))})
