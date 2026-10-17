@@ -128,8 +128,23 @@ const CLUB_SUGGESTIONS=[
 let favoriteClub=localStorage.getItem('golup_favorite_club')||'';
 let favoriteClubQuery='',favoriteClubChoice='',favoriteClubIcon='⚽';
 function openFavoriteClub(){favoriteClubChoice=favoriteClub;favoriteClubQuery='';const el=document.getElementById('teamOnboard');el.classList.add('open');drawClubPicker();}
-function clubSearchChanged(value){favoriteClubQuery=value;favoriteClubChoice='';favoriteClubIcon='⚽';drawClubPicker(false)}
-function chooseFavoriteClub(name,mark){favoriteClubChoice=name;favoriteClubIcon=mark;drawClubPicker(false)}
+function clubSearchChanged(value){
+favoriteClubQuery=value;favoriteClubChoice='';favoriteClubIcon='⚽';
+const list=document.getElementById('clubMatches');if(!list)return;
+const norm=t=>t.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+const query=norm(value.trim());
+const matches=CLUB_SUGGESTIONS.filter(x=>norm(x[0]+' '+x[1]).includes(query)).slice(0,12);
+const custom=value.trim();
+list.innerHTML=matches.map(c=>`<button class="team-option" data-club-name="${esc(c[0])}" type="button"><span class="team-mark">${c[2]}</span>${esc(c[0])}<small>${esc(c[1])}</small></button>`).join('')+(custom&&!matches.some(c=>norm(c[0])===norm(custom))?`<button class="team-option" id="clubCustom" type="button">⚽ Usar “${esc(custom)}” como meu time</button>`:'');
+list.querySelectorAll('[data-club-name]').forEach((b,i)=>b.onclick=()=>chooseFavoriteClub(matches[i][0],matches[i][2]));
+const customBtn=document.getElementById('clubCustom');if(customBtn)customBtn.onclick=()=>chooseFavoriteClub(custom,'⚽');
+const save=document.getElementById('saveClub');if(save)save.disabled=true;
+}
+function chooseFavoriteClub(name,mark){
+favoriteClubChoice=name;favoriteClubIcon=mark;
+document.querySelectorAll('#clubMatches .team-option').forEach(b=>b.classList.toggle('chosen',b.dataset.clubName===name||(b.id==='clubCustom'&&!b.dataset.clubName&&name===favoriteClubQuery.trim())));
+const save=document.getElementById('saveClub');if(save)save.disabled=false;
+}
 function drawClubPicker(resetSearch=true){let el=document.getElementById('teamOnboard');if(!el)return;let query=favoriteClubQuery.trim().toLowerCase();let candidates=CLUB_SUGGESTIONS.filter(x=>(x[0]+' '+x[1]).toLowerCase().includes(query)).slice(0,20);let custom=favoriteClubQuery.trim();el.innerHTML=`<div class="team-shell"><div style="color:#b8fc4c;font-weight:1000;font-size:24px">GolUp ⚡</div><h1>Qual é o seu time do coração? ❤️⚽</h1><p>Escolha um clube do Brasil ou do mundo para personalizar sua experiência. Você pode mudar quando quiser.</p><input class="team-input" id="clubQuery" maxlength="65" placeholder="Buscar time ou país..." value="${esc(favoriteClubQuery)}" oninput="clubSearchChanged(this.value)"/><div id="clubMatches">${candidates.map(c=>`<button class="team-option ${favoriteClubChoice===c[0]?'chosen':''}" onclick='chooseFavoriteClub(${JSON.stringify(c[0])},${JSON.stringify(c[2])})'><span class="team-mark">${c[2]}</span>${esc(c[0])}<small>${esc(c[1])}</small></button>`).join('')}${custom&&!candidates.some(c=>c[0].toLowerCase()===custom.toLowerCase())?`<button class="team-option ${favoriteClubChoice===custom?'chosen':''}" id="clubCustom">⚽ Usar “${esc(custom)}”</button>`:''}</div><p style="font-size:12px">Os símbolos são ilustrativos, não escudos oficiais. Você pode informar qualquer clube. A lista é apenas sugestão.</p><button class="team-btn" id="saveClub" ${!favoriteClubChoice?'disabled':''}>Continuar com meu time</button><button style="display:block;margin:15px auto 0;color:#a6bacb;background:none;border:0" id="laterClub">Escolher depois</button></div>`;
 const customBtn=document.getElementById('clubCustom');if(customBtn)customBtn.onclick=()=>chooseFavoriteClub(custom,'⚽');
 document.getElementById('saveClub').onclick=saveFavoriteClub;document.getElementById('laterClub').onclick=()=>{localStorage.setItem('golup_club_prompt_seen','1');el.classList.remove('open')};
@@ -387,4 +402,4 @@ window.tab=function(name){if(priorTab)priorTab(name);if(name==='search')loadDay(
 })();
 </script>
 <style id="golup27-style">.search-head{display:flex;align-items:end;gap:10px;margin:10px 16px}.search-head>div{flex:1}.search-head label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px}.search-head input{color:var(--txt);color-scheme:dark;background:var(--panel);border:1px solid var(--line);padding:13px;border-radius:11px;width:100%;font:inherit}.search-summary{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:12px 16px}.search-summary b{font-size:12px}.search-summary span{color:var(--sub);font-size:11px}.search-summary button{font-size:11px;padding:8px}.match .club,.match .score{cursor:pointer}</style>
-</body></html>
+<style>#clubMatches{max-height:38vh;overflow-y:auto;overscroll-behavior:contain;margin-top:8px;scrollbar-width:thin}#teamOnboard{padding-bottom:48px}.team-shell{margin:12px auto}.team-option{font-size:15px}</style></body></html>
