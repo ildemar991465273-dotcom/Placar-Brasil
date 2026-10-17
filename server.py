@@ -4,6 +4,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 API_KEY=os.getenv("API_FOOTBALL_KEY","")
 FD_KEY=os.getenv("FOOTBALL_DATA_KEY","")
+SM_KEY=os.getenv("SPORTMONKS_TOKEN","")
 PORT=int(os.getenv("PORT","10000"))
 CACHE={}
 LOCK=threading.Lock()
@@ -50,7 +51,43 @@ def football_data_match(params):
     with urllib.request.urlopen(req,timeout=18) as response: data=json.loads(response.read().decode())
     return {"status":data.get("status"),"minute":data.get("minute"),"home":data.get("homeTeam",{}),"away":data.get("awayTeam",{}),"goals":data.get("goals") or [],"bookings":data.get("bookings") or [],"substitutions":data.get("substitutions") or [],"penalties":data.get("penalties") or [],"score":data.get("score") or {},"utcDate":data.get("utcDate") }
 
+def sportmonks_request(path,include=""):
+    if not SM_KEY:raise RuntimeError("SPORTMONKS_TOKEN não configurado no Render")
+    qs=urllib.parse.urlencode({"include":include}) if include else ""
+    url="https://api.sportmonks.com/v3/football/"+path+("?" +qs if qs else "")
+    req=urllib.request.Request(url,headers={"Authorization":SM_KEY,"Accept":"application/json","User-Agent":"GolUp/3"})
+    try:
+        with urllib.request.urlopen(req,timeout=18) as response:return json.loads(response.read().decode()).get("data",{})
+    except urllib.error.HTTPError as e:raise RuntimeError("Sportmonks HTTP "+str(e.code))
+
+def sportmonks_fixtures(params):
+    day=(params.get("date") or [datetime.date.today().isoformat()])[0]
+    if not __import__("re").fullmatch(r"\d{4}-\d{2}-\d{2}",day):raise ValueError("Data inválida")
+    results=sportmonks_request("fixtures/date/"+day,"participants;scores;league;state")
+    if not isinstance(results,list):results=[results] if results else []
+    out=[]
+    for m in results:
+        parts=m.get("participants") or []
+        home=next((p for p in parts if (p.get("meta") or {}).get("location")=="home"),parts[0] if parts else {})
+        away=next((p for p in parts if (p.get("meta") or {}).get("location")=="away"),parts[1] if len(parts)>1 else {})
+        scores=m.get("scores") or []
+        final=[v for v in scores if (v.get("description") or "").upper() in ("CURRENT","FT","FULLTIME")]
+        selected=final or scores
+        def goal(side):
+            for v in selected:
+                sc=v.get("score") or {}
+                if sc.get("participant")==side:return sc.get("goals")
+            return None
+        h,a=goal("home"),goal("away")
+        state=(m.get("state") or {}).get("state") or str(m.get("state_id") or "")
+        live=str(state).upper() in ("LIVE","INPLAY","IN_PLAY","HT","BREAK")
+        out.append({"id":"sm-"+str(m.get("id")),"source_id":m.get("id"),"provider":"sportmonks","real":True,"sport":0,"a":home.get("name","Casa"),"b":away.get("name","Visitante"),"ea":"⚽","eb":"⚽","league":(m.get("league") or {}).get("name","Sportmonks"),"country":"","flag":"🌍","score":str(h)+" - "+str(a) if h is not None and a is not None else "–","status":state,"live":live})
+    return out
+
 def get_data(route,params):
+    if route=="sportmonks-fixtures":return sportmonks_fixtures(params)
+    if route=="sportmonks-status":return {"configured":bool(SM_KEY)}
+
     if route=="match" and FD_KEY:return football_data_match(params)
     if route=="competitions" and FD_KEY:
         key=("football-data-competitions",)
