@@ -2,12 +2,50 @@ import os, json, urllib.request, urllib.parse, datetime, time, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 API_KEY=os.getenv("API_FOOTBALL_KEY","")
+FD_KEY=os.getenv("FOOTBALL_DATA_KEY","")
 PORT=int(os.getenv("PORT","10000"))
 CACHE={}
 LOCK=threading.Lock()
 ROUTES={"fixtures","events","statistics","lineups","players","leagues","teams","transfers"}
+def football_data_games(params):
+    if not FD_KEY: raise RuntimeError("FOOTBALL_DATA_KEY não configurada no Render")
+    day=params.get("date",[datetime.date.today().isoformat()])[0]
+    if not __import__("re").fullmatch(r"\\d{4}-\\d{2}-\\d{2}",day): raise ValueError("Data inválida")
+    url="https://api.football-data.org/v4/matches?"+urllib.parse.urlencode({"dateFrom":day,"dateTo":day})
+    request=urllib.request.Request(url,headers={"X-Auth-Token":FD_KEY,"Accept":"application/json"})
+    try:
+        with urllib.request.urlopen(request,timeout=20) as response: payload=json.loads(response.read().decode())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError("football-data.org HTTP "+str(e.code)+": "+e.read(300).decode("utf-8","replace"))
+    games=[]
+    for match in payload.get("matches",[]):
+        status=match.get("status","")
+        score=match.get("score") or {}
+        full=score.get("fullTime") or {}
+        home=full.get("home")
+        away=full.get("away")
+        if home is None and away is None:
+            score_label="–"
+        else: score_label=str(home if home is not None else "–")+" - "+str(away if away is not None else "–")
+        games.append({"id":match.get("id"),"real":True,"sport":0,
+            "a":(match.get("homeTeam") or {}).get("name") or "Casa",
+            "b":(match.get("awayTeam") or {}).get("name") or "Visitante",
+            "ea":"⚽","eb":"⚽","league":(match.get("competition") or {}).get("name") or "",
+            "country":(match.get("area") or {}).get("name") or "",
+            "flag":"🌍","score":score_label,"status":status,
+            "live":status in ("IN_PLAY","PAUSED","EXTRA_TIME","PENALTY_SHOOTOUT")})
+    return games
+
 def get_data(route,params):
-    if not API_KEY: raise RuntimeError("API_FOOTBALL_KEY não configurada no servidor")
+    if route=="fixtures" and FD_KEY:
+        key=("football-data",tuple(sorted((k,tuple(v)) for k,v in params.items())))
+        with LOCK:
+            cached=CACHE.get(key)
+            if cached and time.time()-cached[0]<90:return cached[1]
+        result=football_data_games(params)
+        with LOCK:CACHE[key]=(time.time(),result)
+        return result
+    if not API_KEY: raise RuntimeError("Configure FOOTBALL_DATA_KEY ou API_FOOTBALL_KEY no servidor")
     if route not in ROUTES: raise ValueError("Rota desconhecida")
     params={k:v[0] for k,v in params.items() if k in {"date","fixture","league","season","team","id","player","live","country","search","timezone","from","to"} and v and len(v[0])<=100}
     if route=="fixtures" and "date" not in params and "live" not in params: params["date"]=datetime.date.today().isoformat()
@@ -48,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):self.send_json(200,{})
     def do_GET(self):
         url=urllib.parse.urlparse(self.path);route=url.path.strip("/")
-        if route in ("","health"):return self.send_json(200,{"service":"GolUp API","ok":True,"configured":bool(API_KEY)})
+        if route in ("","health"):return self.send_json(200,{"service":"GolUp API","ok":True,"configured":bool(FD_KEY or API_KEY),"provider":"football-data.org" if FD_KEY else "api-football" if API_KEY else "none"})
         if not route.startswith("api/"):return self.send_json(404,{"error":"Rota não encontrada"})
         try:self.send_json(200,{"data":get_data(route.split("/",1)[1],urllib.parse.parse_qs(url.query))})
         except ValueError as e:self.send_json(400,{"error":str(e)})
