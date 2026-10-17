@@ -4,3 +4,13 @@ android {
  compileSdk 35
  defaultConfig { applicationId 'br.com.golup.app'; minSdk 23; targetSdk 35; versionCode 7; versionName '2.7.0' }
 }
+
+tasks.register('generateGolUpIcon') {
+    doLast {
+        def encoded = file('src/main/assets/golup_launcher.jpg.base64').text.trim()
+        def output = file('src/main/res/drawable-nodpi/ic_golup.jpg')
+        output.parentFile.mkdirs()
+        output.bytes = java.util.Base64.getDecoder().decode(encoded)
+    }
+}
+tasks.named('preBuild') { dependsOn('generateGolUpIcon') }
