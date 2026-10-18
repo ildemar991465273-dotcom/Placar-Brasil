@@ -107,7 +107,7 @@ detailSection=function(which){let g=(liveGames||demo).find(x=>x.id===activeMatch
 const oldTransfer=renderTransfers;
 renderTransfers=function(box){oldTransfer(box);let note=box.querySelector('.world-note');if(note)note.textContent='Transferências: exemplos fictícios nesta tela. O provedor permite consultar transferências reais por ID de jogador ou equipe, quando disponível. Rumores jornalísticos não fazem parte dessa API.'};
 // Atualização com app ABERTO. Notificação push em segundo plano depende de infraestrutura separada.
-setInterval(()=>{if(apiBase&&sport===0&&tabName==='games')loadReal(false);if(apiBase&&sport===0&&tabName==='search'&&typeof loadDay==='function')loadDay()},60000);
+setInterval(()=>{if(apiBase&&sport===0&&tabName==='games')loadReal(false);if(apiBase&&sport===0&&tabName==='search'&&typeof loadDay==='function')loadDay()},25000);
 if(apiBase)loadReal(false);
 
 
