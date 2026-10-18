@@ -161,7 +161,7 @@ def get_data(route,params):
         key=("football-data",tuple(sorted((k,tuple(v)) for k,v in params.items())))
         with LOCK:
             cached=CACHE.get(key)
-            if cached and time.time()-cached[0]<90:return cached[1]
+            if cached and time.time()-cached[0]<15:return cached[1]
         result=football_data_games(params)
         if SM_KEY and all(33<=ord(c)<=126 for c in SM_KEY):
             try:
@@ -209,6 +209,7 @@ class Handler(BaseHTTPRequestHandler):
         raw=json.dumps(data,ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header("Content-Type","application/json; charset=utf-8")
+        self.send_header("Cache-Control","no-store, no-cache, must-revalidate")
         self.send_header("Content-Length",str(len(raw)))
         self.send_header("Access-Control-Allow-Origin","*")
         self.send_header("Access-Control-Allow-Methods","GET, OPTIONS")
